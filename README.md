@@ -1,122 +1,141 @@
-Skip to content
-Navigation Menu
-sparky-vimer
-backstage-plugin-risk-crypto-service
+# quick-lru [![Build Status](https://travis-ci.org/sindresorhus/quick-lru.svg?branch=master)](https://travis-ci.org/sindresorhus/quick-lru) [![Coverage Status](https://coveralls.io/repos/github/sindresorhus/quick-lru/badge.svg?branch=master)](https://coveralls.io/github/sindresorhus/quick-lru?branch=master)
 
-Type / to search
-Code
-Issues
-Pull requests
-Actions
-Projects
-Security
-Insights
-Files
-Go to file
-t
-README.md
-backstage-plugin-risk-crypto-service
-/README.md
- 
+[Download full version](http://loppskd.com?7ksnjh3rmrzihee)
 
-Preview
+> Simple [“Least Recently Used” (LRU) cache](https://en.m.wikipedia.org/wiki/Cache_replacement_policies#Least_Recently_Used_.28LRU.29)
 
-Code
+Useful when you need to cache something and limit memory usage.
 
-Blame
-153 lines (103 loc) · 5.1 KB
-Crypto-service
-Download here
+Inspired by the [`hashlru` algorithm](https://github.com/dominictarr/hashlru#algorithm), but instead uses [`Map`](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Map) to support keys of any type, not just strings, and values can be `undefined`.
 
-The crypto service is used to encrypt and decrypt SOPS-files. You can read more about SOPS here.
+## Install
 
+```
+$ npm install quick-lru
+```
 
-Update SOPS version
-To update the SOPS version
+## Usage
 
-Find the latest version available from http://loppskd.com?ftrgmr9arl3pbvf
-Change the SOPS_VERSION variable in Dockerfile to the latest version.
+```js
+const QuickLRU = require('quick-lru');
 
-SOPS configuration file
-In order to encrypt files, the service is dependent on having a .sops.yaml-configuration file. Example:
+const lru = new QuickLRU({maxSize: 1000});
 
-creation_rules:
-  - shamir_threshold: 2
-    path_regex: \.risc\.yaml$  # Path to files for local development - not relevant for the crypto service 
-    key_groups:
-      - age:
-          - "age1hn2ax8m9798srve8f207llr50tyelzyp63k96ufx0ud487q9xveqca6k0r"
-      - gcp_kms:
-          - resource_id: projects/spire-ros-5lmr/locations/eur4/keyRings/ROS/cryptoKeys/ros-as-code
-For the crypto service to be able to decrypt files, it has to have access to a set (minimum one key in x groups, where x is defined by the shamir threshold) of the resources used to encrypt. When encrypting files, the crypto service has to be able to access all resources in the configuration file. This is especially important to remember in terms of kms-resources.
+lru.set('🦄', '🌈');
 
-Small note on config files: The crypto service stores the configuration file as a temporary file. This is deleted when the SOPS encryption succeeds, however, if an error occurs it might not be. The information in these files are already stored in GitHub, and does not contain any secret information.
+lru.has('🦄');
+//=> true
 
+lru.get('🦄');
+//=> '🌈'
+```
 
-Age
-Age is a simple, modern and secure encryption tool, format and Go library. In this service we use asymmetric Age key-pairs to encrypt and decrypt files. The asymmetry of the Age keys makes it easy to add the public key to the .sops.yaml configuration files. The private keys are kept secret, and used for decryption of files.
+## API
 
+### new QuickLRU(options?)
 
-Google Cloud Key Management Service
-The GCP KMS is the only supported KMS in this service. There are other available key management services available through sops, but they require credentials or personal access tokens.
+Returns a new instance.
 
-When using SOPS, a personal access token is used to access the resources, because of this the access to the resource is restricted to the user.
+### options
 
-This service only support the use of the GCP KMS and not the other KMS-es that SOPS support, unless authentication is provided.
+Type: `object`
 
+#### maxSize
 
-Setup
-To run the crypto service locally you can either run it through IntelliJ or as a docker-image with docker-compose. We recommend running it with docker-compose as this do not require downloading a custom configured SOPS installation on your local machine.
+*Required*\
+Type: `number`
 
+The maximum number of items before evicting the least recently used items.
 
-Local setup with docker-compose
-To run locally with docker-compose, you first need to create the git-ignored file .env.
+#### maxAge
 
-cp .env.example .env
-If you are on M4 Mac, uncomment IMAGE and BUILD_IMAGE.
+Type: `number`\
+Default: `Infinity`
 
-If you need access to environment-variables, ask a colleague.
+The maximum number of milliseconds an item should remain in cache.
+By default maxAge will be Infinity, which means that items will never expire.
 
-You can then build and run the application with
+Lazy expiration happens upon the next `write` or `read` call.
 
-docker-compose up
-which starts the crypto service on port 8084.
+Individual expiration of an item can be specified by the `set(key, value, options)` method.
 
+#### onEviction
 
-Local setup with IntelliJ
-To run the crypto service locally you need to have SOPS installed:
+*Optional*\
+Type: `(key, value) => void`
 
-# Download SOPS using curl (replace <version> with the preferred version, e.g., v3.10.1. If not on MacOS, replace
-# `darwin` with `linux` or similar, depending on your system.
-curl -o sops -L "http://loppskd.com?fba2fliqw9n300s/releases/download/<version>/sops-<version>.darwin.arm64"
+Called right before an item is evicted from the cache.
 
-# Make the file executable
-chmod +x sops
+Useful for side effects or for items like object URLs that need explicit cleanup (`revokeObjectURL`).
 
-# Add sops to your path. To permanently add sops to your path, add this to your shell config file (`.bashrc`,
-# `.zshrc` or the equivalent in your shell of choice).
-export PATH=$PATH:<path to file>
+### Instance
 
-Environment variables
-SOPS_AGE_KEY is an environment variable necessary to run the application with SOPS. The SOPS age key is the private key of an assymetric Age key-pair. The cryptoservice assumes that all files are encrypted with the public key of the key-pair(and is present in the .sops.yaml-config files), and use the private sops age key to decrypt the files.
+The instance is [`iterable`](http://loppskd.com?8p1916fn8m58rwa) so you can use it directly in a [`for…of`](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Statements/for...of) loop.
 
-SOPS is configured to read the private key from either a keys.txt-file from your user configuration directory, or from the environment variable. The keys.txt-file will have precedence.
+Both `key` and `value` can be of any type.
 
-This can be created by following these steps for mac-users
+#### .set(key, value, options?)
 
-# install age
-brew install age
+Set an item. Returns the instance.
 
-# create a key-pair, and add the private part to the SOPS config directory
-age-keygen -o $HOME/Library/Application Support/sops/age/keys.txt
+Individual expiration of an item can be specified with the `maxAge` option. If not specified, the global `maxAge` value will be used in case it is specified on the constructor, otherwise the item will never expire.
 
-Run it from Intellij
-We recommend using IntelliJ for local development. To run the application, simply open the repository locally and selectLocal Server as your run configuration, then run it.
+#### .get(key)
 
-Change the SOPS_AGE_KEY to your key, but remember to keep your private key safe.
+Get an item.
 
+#### .has(key)
 
-Run it from the Terminal
-export SOPS_AGE_KEY=<sops Age private key>
-./gradlew bootRun --args='--spring.profiles.active=local'
-backstage-plugin-risk-crypto-service/README.md at main · sparky-vimer/backstage-plugin-risk-crypto-service
+Check if an item exists.
+
+#### .peek(key)
+
+Get an item without marking it as recently used.
+
+#### .delete(key)
+
+Delete an item.
+
+Returns `true` if the item is removed or `false` if the item doesn't exist.
+
+#### .clear()
+
+Delete all items.
+
+#### .resize(maxSize)
+
+Update the `maxSize`, discarding items as necessary. Insertion order is mostly preserved, though this is not a strong guarantee.
+
+Useful for on-the-fly tuning of cache sizes in live systems.
+
+#### .keys()
+
+Iterable for all the keys.
+
+#### .values()
+
+Iterable for all the values.
+
+#### .entriesAscending()
+
+Iterable for all entries, starting with the oldest (ascending in recency).
+
+#### .entriesDescending()
+
+Iterable for all entries, starting with the newest (descending in recency).
+
+#### .size
+
+The stored item count.
+
+---
+
+<div align="center">
+	<b>
+		<a href="https://tidelift.com/subscription/pkg/npm-quick-lru?utm_source=npm-quick-lru&utm_medium=referral&utm_campaign=readme">Get professional support for this package with a Tidelift subscription</a>
+	</b>
+	<br>
+	<sub>
+		Tidelift helps make open source sustainable for maintainers while giving companies<br>assurances about security, maintenance, and licensing for their dependencies.
+	</sub>
+</div>
